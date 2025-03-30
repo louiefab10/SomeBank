@@ -1,15 +1,13 @@
-using System;
-using System.Collections.Generic;
 namespace SomeBank;
 
 public class Bank
 {
-    public static Dictionary<int, Account> Accounts = new Dictionary<int, Account>();
+    public static Dictionary<string, Account> Accounts = new Dictionary<string, Account>();
 
     public static void Start()
     {
         Accounts = Account.LoadFromFile();
-        Console.WriteLine("Welcome to SomeBank! \n Member of PDIC and BancNet. Regulated by the Bangko Sentral ng Pilipinas.");
+        Console.WriteLine("\t Welcome to SomeBank! \n \t Member of PDIC and BancNet. Regulated by the Bangko Sentral ng Pilipinas.");
         while (true)
         {
             Console.WriteLine("\n 1. Already a member? Login.");
@@ -42,6 +40,8 @@ public class Bank
     {
         while (true)
         {
+            Console.Clear();
+            Console.WriteLine("\t Welcome to SomeBank Digital!");
             Console.WriteLine("\n SomeBank Menu:");
             Console.WriteLine("1. Check Balance");
             Console.WriteLine("2. Deposit Money");
@@ -54,15 +54,23 @@ public class Bank
             {
                 case "1":
                     account.CheckBalance();
+                    Console.Write("\nPress any key to return to the menu...");
+                    Console.ReadKey();
                     break;
                 case "2":
                     account.Deposit();
+                    Console.Write("\nPress any key to return to the menu...");
+                    Console.ReadKey();
                     break;
                 case "3":
                     account.Withdraw();
+                    Console.Write("\nPress any key to return to the menu...");
+                    Console.ReadKey();
                     break;
                 case "4":
                     account.ShowTransactions();
+                    Console.Write("\nPress any key to return to the menu...");
+                    Console.ReadKey();
                     break;
                 case "5":
                     Console.Clear();
@@ -77,12 +85,13 @@ public class Bank
 
     private static void Login()
     {
-        Console.WriteLine("\n Enter your account number: ");
-        if (int.TryParse(Console.ReadLine(), out int accountNumber) && Accounts.ContainsKey(accountNumber))
+        Console.Write("Enter your username: ");
+        string username = Console.ReadLine();
+        if (Accounts.ContainsKey(username))
         {
-            Account account = Accounts[accountNumber];
+            Account account = Accounts[username];
             Console.Write("Enter your PIN: ");
-            string pin = Console.ReadLine();
+            string pin = HidePin();
             if (account.Authenticate(pin))
             {
                 ShowMenu(account);
@@ -98,27 +107,60 @@ public class Bank
         }
     }
 
-    private static void CreateAccount()
+    public static string HidePin()
     {
-        Console.Write("\nEnter a new account number: ");
-        if (int.TryParse(Console.ReadLine(), out int accountNumber) && !Accounts.ContainsKey(accountNumber))
+        string pin = "";
+        ConsoleKeyInfo keyInfo;
+        while (true)
         {
-            Console.Write("Create a 4-digit PIN: ");
-            string pin = Console.ReadLine();
-            if (pin.Length != 4 || !int.TryParse(pin, out _))
+            keyInfo = Console.ReadKey(true);
+            if (keyInfo.Key == ConsoleKey.Enter)
             {
-                Console.WriteLine("A PIN must only contain 4 digits, please try again.");
-                return;
+                break;
             }
 
-            string hashedPin = Account.EncryptPin(pin);
-            Accounts[accountNumber] = new Account(accountNumber, hashedPin, 0);
+            if (keyInfo.Key == ConsoleKey.Backspace && pin.Length > 0)
+            {
+                pin = pin.Substring(0, (pin.Length - 1));
+                Console.Write("\b \b");
+                continue;
+            }
+
+            if (char.IsDigit(keyInfo.KeyChar))
+            {
+                pin += keyInfo.KeyChar;
+                Console.Write("*");
+            }
+        }
+        Console.WriteLine();
+        return pin;
+    }
+
+    private static void CreateAccount()
+    {
+        Console.Write("\nEnter your preferred username: ");
+        string username = Console.ReadLine();
+        if (!Accounts.ContainsKey(username))
+        {
+            Console.Write("Create a 4-digit pin: ");
+            string pin = HidePin();
+            if (pin.Length != 4 || !int.TryParse(pin, out _))
+            {
+                Console.WriteLine("A pin should only contain numbers and must be exactly 4 digits.");
+                return;
+            }
+            string salt = Account.GenerateSalt();
+            string newAccNum = Account.GenerateAccountNumber();
+            string encryptedPin = Account.EncryptPin(pin, salt);
+            Accounts[username] = new Account(username, newAccNum, encryptedPin, 0, salt);
             Account.SaveToFile();
-            Console.WriteLine("Account has been successfully created. Welcome to SomeBank!");
+            Console.Clear();
+            Console.WriteLine($"\t Account {username} has been successfully created. Welcome to SomeBank!");
         }
         else
         {
-            Console.WriteLine("Account number is invalid or already exists.");
+            Console.Write("An account with that username already exists. Please enter a different username.");
+            return;
         }
     }
 }
